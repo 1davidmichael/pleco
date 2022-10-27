@@ -2,7 +2,9 @@ package common
 
 import (
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -20,7 +22,8 @@ func CheckEnvVars(cloudProvider string, cmd *cobra.Command) {
 
 	switch cloudProvider {
 	case "aws":
-		requiredEnvVars = append(requiredEnvVars, checkAWSEnvVars(cmd)...)
+		// requiredEnvVars = append(requiredEnvVars, checkAWSEnvVars(cmd)...)
+		// Do nothing
 	case "scaleway":
 		requiredEnvVars = append(requiredEnvVars, checkScalewayEnvVars(cmd)...)
 	case "do":
@@ -42,25 +45,36 @@ func CheckEnvVars(cloudProvider string, cmd *cobra.Command) {
 }
 
 func checkAWSEnvVars(cmd *cobra.Command) []string {
-	var requiredEnvVars = []string{
-		"AWS_ACCESS_KEY_ID",
-		"AWS_SECRET_ACCESS_KEY",
+	// if metadata endpoint is available assume env vars are not required
+	// https://stackoverflow.com/questions/44193262/how-to-identify-whether-my-container-is-running-on-aws-ecs-or-not
+	// http://169.254.169.254/latest/meta-data/
+	var requiredEnvVars []string
+	client := &http.Client{
+		Timeout: 1 * time.Second,
 	}
 
-	if isUsed(cmd, "rds") ||
-		isUsed(cmd, "documentdb") ||
-		isUsed(cmd, "elasticache") ||
-		isUsed(cmd, "eks") ||
-		isUsed(cmd, "elb") ||
-		isUsed(cmd, "vpc") ||
-		isUsed(cmd, "s3") ||
-		isUsed(cmd, "ebs") ||
-		isUsed(cmd, "cloudwatch-logs") ||
-		isUsed(cmd, "kms") ||
-		isUsed(cmd, "iam") ||
-		isUsed(cmd, "ssh-keys") ||
-		isUsed(cmd, "ecr") {
-		return requiredEnvVars
+	resp, err := client.Get("http://169.254.169.254/latest/meta-data/")
+	if resp.StatusCode == 200 && err == nil {
+		return []string{}
+	} else {
+		if isUsed(cmd, "rds") ||
+			isUsed(cmd, "documentdb") ||
+			isUsed(cmd, "elasticache") ||
+			isUsed(cmd, "eks") ||
+			isUsed(cmd, "elb") ||
+			isUsed(cmd, "vpc") ||
+			isUsed(cmd, "s3") ||
+			isUsed(cmd, "ebs") ||
+			isUsed(cmd, "cloudwatch-logs") ||
+			isUsed(cmd, "kms") ||
+			isUsed(cmd, "iam") ||
+			isUsed(cmd, "ssh-keys") ||
+			isUsed(cmd, "ecr") {
+
+			requiredEnvVars = append(requiredEnvVars, "AWS_ACCESS_KEY_ID")
+			requiredEnvVars = append(requiredEnvVars, "AWS_SECRET_ACCESS_KEY")
+			return requiredEnvVars
+		}
 	}
 
 	return []string{}

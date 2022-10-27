@@ -1,6 +1,6 @@
 FROM golang:1.18.3-buster as build
 
-ADD . /pleco
+COPY . /pleco
 WORKDIR /pleco
 RUN go get && go build -o /pleco.bin main.go
 
